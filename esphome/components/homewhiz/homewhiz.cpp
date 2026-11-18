@@ -117,6 +117,16 @@ void HomeWhiz::gattc_event_handler(esp_gattc_cb_event_t event,
       break;
     }
     case ESP_GATTC_SEARCH_CMPL_EVT: {
+      if (this->configured_notify_handle_ != 0 && this->configured_write_handle_ != 0) {
+        this->notify_handle_ = this->configured_notify_handle_;
+        this->write_handle_ = this->configured_write_handle_;
+        ESP_LOGI(TAG, "Using configured handles: notify=0x%04x write=0x%04x",
+                 this->notify_handle_, this->write_handle_);
+        esp_ble_gattc_register_for_notify(this->parent()->get_gattc_if(),
+                                          this->parent()->get_remote_bda(),
+                                          this->notify_handle_);
+        break;
+      }
       this->service_uuid_ = esp32_ble_tracker::ESPBTUUID::from_raw(this->service_uuid_raw_);
       auto *notify_chr =
           this->parent()->get_characteristic(this->service_uuid_, this->notify_uuid_);

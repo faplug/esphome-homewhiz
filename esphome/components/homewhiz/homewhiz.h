@@ -41,6 +41,8 @@ class HomeWhiz : public ble_client::BLEClientNode, public Component {
                            esp_ble_gattc_cb_param_t *param) override;
 
   void set_service_uuid(const std::string &uuid) { this->service_uuid_raw_ = uuid; }
+  void set_notify_handle(uint16_t handle) { this->configured_notify_handle_ = handle; }
+  void set_write_handle(uint16_t handle) { this->configured_write_handle_ = handle; }
 
   // True once connected + handshaken to the appliance. Used to suppress BLE
   // scan logging once we have a live link (scan only while unconnected).
@@ -92,6 +94,8 @@ class HomeWhiz : public ble_client::BLEClientNode, public Component {
 
   uint16_t notify_handle_{0};
   uint16_t write_handle_{0};
+  uint16_t configured_notify_handle_{0};
+  uint16_t configured_write_handle_{0};
   bool handshaken_{false};
   // millis() when the BLE link opened (0 = not connected). Used only to report
   // connection lifetime in the DISCONNECT log.

@@ -29,6 +29,8 @@ MULTI_CONF = True
 CONF_SERVICE_UUID = "service_uuid"
 CONF_HOMEWHIZ_ID = "homewhiz_id"
 CONF_CONNECTED = "connected"
+CONF_NOTIFY_HANDLE = "notify_handle"
+CONF_WRITE_HANDLE = "write_handle"
 
 homewhiz_ns = cg.esphome_ns.namespace("homewhiz")
 HomeWhiz = homewhiz_ns.class_("HomeWhiz", ble_client.BLEClientNode, cg.Component)
@@ -47,6 +49,10 @@ CONFIG_SCHEMA = (
                 device_class=DEVICE_CLASS_CONNECTIVITY,
                 entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
             ),
+            # Optional explicit GATT handles. ESP-IDF's UUID lookup
+            # can fail on some appliances; direct handle access works.
+            cv.Optional(CONF_NOTIFY_HANDLE): cv.uint16_t,
+            cv.Optional(CONF_WRITE_HANDLE): cv.uint16_t,
         }
     )
     .extend(ble_client.BLE_CLIENT_SCHEMA)
@@ -59,6 +65,10 @@ async def to_code(config):
     await cg.register_component(var, config)
     await ble_client.register_ble_node(var, config)
     cg.add(var.set_service_uuid(config[CONF_SERVICE_UUID]))
+    if CONF_NOTIFY_HANDLE in config:
+        cg.add(var.set_notify_handle(config[CONF_NOTIFY_HANDLE]))
+    if CONF_WRITE_HANDLE in config:
+        cg.add(var.set_write_handle(config[CONF_WRITE_HANDLE]))
     if CONF_CONNECTED in config:
         sens = await core_binary_sensor.new_binary_sensor(config[CONF_CONNECTED])
         cg.add(var.set_connected_binary_sensor(sens))
