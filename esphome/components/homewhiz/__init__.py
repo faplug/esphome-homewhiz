@@ -49,10 +49,14 @@ CONFIG_SCHEMA = (
                 device_class=DEVICE_CLASS_CONNECTIVITY,
                 entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
             ),
-            # Optional explicit GATT handles. ESP-IDF's UUID lookup
-            # can fail on some appliances; direct handle access works.
-            cv.Optional(CONF_NOTIFY_HANDLE): cv.uint16_t,
-            cv.Optional(CONF_WRITE_HANDLE): cv.uint16_t,
+            # Optional explicit GATT handles. ESP-IDF's UUID lookup may fail
+            # on some appliances; direct handle access can be used instead.
+            cv.Inclusive(
+                CONF_NOTIFY_HANDLE, "gatt_handles"
+            ): cv.int_range(min=1, max=0xFFFF),
+            cv.Inclusive(
+                CONF_WRITE_HANDLE, "gatt_handles"
+            ): cv.int_range(min=1, max=0xFFFF),
         }
     )
     .extend(ble_client.BLE_CLIENT_SCHEMA)

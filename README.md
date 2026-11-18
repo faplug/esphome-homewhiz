@@ -178,6 +178,28 @@ The BLE characteristics are the same across all HomeWhiz appliances (notify
 Beko washer. If yours differs, the `ble_client` GATT dump in the DEBUG logs lists
 every service and its characteristics — pick the one containing `AC01` + `AC02`.
 
+### Explicit GATT handles (fallback)
+
+If the characteristics cannot be resolved by UUID on your ESP32 (for example the
+component logs `AC01/AC02 not found under service ...`), read the GATT table once
+with a client that works — the Home Assistant HomeWhiz integration through a
+Bluetooth proxy, or nRF Connect — and configure the handles explicitly:
+
+```yaml
+homewhiz:
+  - id: appliance
+    ble_client_id: appliance_ble
+    service_uuid: "0000ac00-0000-1000-8000-00805f9b34fb"
+    notify_handle: 0x0011   # AC02, state stream
+    write_handle: 0x000E    # AC01, handshake + commands
+```
+
+Both handles must be set together. When set, the component registers for
+notifications on `notify_handle` and sends the handshake to `write_handle`,
+skipping the UUID lookup. The handles are stable for a given appliance firmware,
+but may change after a firmware update; the component checks the configured
+handles against the discovered services and logs a warning if they do not match.
+
 ### Connection status
 
 `bridge.yaml` exposes an optional `connected` binary_sensor (device class
@@ -346,28 +368,3 @@ without hardware.
 
 [MIT](LICENSE). Vendored upstream files are MIT — see
 `provisioning/vendor/LICENSE.upstream`.
-
-## Appliances where the ESP-IDF UUID lookup fails (`status=4`)
-
-Some appliances (for example the Beko B3WFR572W) expose the HomeWhiz service and
-characteristics to Bleak/Android, but `esp_ble_gattc_get_char_by_uuid` in ESP-IDF
-returns `status=4` for AC01/AC02. The component then cannot resolve the
-characteristics, never subscribes, and the appliance drops the link after ~9 s.
-
-Read the GATT table once with a client that works (the Home Assistant HomeWhiz
-integration through a Bluetooth proxy, or nRF Connect), then configure the
-handles explicitly:
-
-```yaml
-homewhiz:
-  - id: appliance
-    ble_client_id: appliance_ble
-    service_uuid: "0000ac00-0000-1000-8000-00805f9b34fb"
-    notify_handle: 0x0011   # AC02, state stream
-    write_handle: 0x000E    # AC01, handshake + commands
-```
-
-When both handles are set, the component skips the UUID lookup, registers for
-notifications on `notify_handle`, and sends the handshake to `write_handle`.
-The handles are stable for a given appliance firmware, but may change after a
-firmware update.

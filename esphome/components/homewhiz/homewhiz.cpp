@@ -34,6 +34,9 @@ void HomeWhiz::loop() {
 void HomeWhiz::dump_config() {
   ESP_LOGCONFIG(TAG, "HomeWhiz:");
   ESP_LOGCONFIG(TAG, "  Service UUID: %s", this->service_uuid_raw_.c_str());
+  if (this->configured_notify_handle_ != 0 || this->configured_write_handle_ != 0)
+    ESP_LOGCONFIG(TAG, "  Configured handles: notify=0x%04x write=0x%04x",
+                  this->configured_notify_handle_, this->configured_write_handle_);
   ESP_LOGCONFIG(TAG, "  Mapping: %u fields, %u write targets", (unsigned) HW_FIELD_COUNT,
                 (unsigned) HW_WRITE_COUNT);
   // Log each registered key and check it exists with a compatible kind for the
@@ -122,6 +125,19 @@ void HomeWhiz::gattc_event_handler(esp_gattc_cb_event_t event,
         this->write_handle_ = this->configured_write_handle_;
         ESP_LOGI(TAG, "Using configured handles: notify=0x%04x write=0x%04x",
                  this->notify_handle_, this->write_handle_);
+        auto *notify_chr = this->parent()->get_characteristic(this->notify_handle_);
+        auto *write_chr = this->parent()->get_characteristic(this->write_handle_);
+        if (notify_chr == nullptr || write_chr == nullptr) {
+          ESP_LOGW(TAG, "Configured handles not found in discovered services "
+                        "(notify=0x%04x write=0x%04x)",
+                   this->notify_handle_, this->write_handle_);
+        } else if (notify_chr->uuid != this->notify_uuid_ ||
+                   write_chr->uuid != this->write_uuid_) {
+          ESP_LOGW(TAG, "Configured handles point to unexpected characteristics");
+        } else {
+          ESP_LOGI(TAG, "Handle check passed (notify=0x%04x write=0x%04x)",
+                   this->notify_handle_, this->write_handle_);
+        }
         esp_ble_gattc_register_for_notify(this->parent()->get_gattc_if(),
                                           this->parent()->get_remote_bda(),
                                           this->notify_handle_);
@@ -149,6 +165,11 @@ void HomeWhiz::gattc_event_handler(esp_gattc_cb_event_t event,
     case ESP_GATTC_REG_FOR_NOTIFY_EVT: {
       if (param->reg_for_notify.handle != this->notify_handle_)
         break;
+      if (param->reg_for_notify.status != ESP_GATT_OK) {
+        ESP_LOGW(TAG, "register_for_notify failed: status=%d",
+                 param->reg_for_notify.status);
+        break;
+      }
       // Handshake: write 8 bytes to AC01 WITHOUT response. The appliance streams
       // nothing until it receives this (plan §3.2).
       this->write_char_(this->write_handle_, HOMEWHIZ_HANDSHAKE,
